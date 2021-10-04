@@ -93,8 +93,8 @@ int main() {
         unsigned long num = rand();
 
         size_list[times - free] = ((num >> 3 << 3) & ((PAGE_SIZE  - 1))) ;
-//        if(num & 0x01)
-//            size_list[times - free] += PAGE_SIZE;
+        if(num & 0x01)
+            size_list[times - free] += PAGE_SIZE;
         void *ptr= memory_manage_allocate(size_list[times - free]);
         ptr_list[times - free] = ptr;
         if(ptr_list[times - free] == NULL) {
@@ -136,11 +136,11 @@ int main() {
     unsigned long size = 0;
     for(unsigned int index = 0;index < times - free;index++)
     {
-        size += size_list[times - free];
+        size += size_list[index];
     }
-//    printf("actually size:0x%lx\n",size);
-//    printf("current allocate block :%d\n",times - free);
-//    printf("total size:0x%x",memory_manage_struct.total_size);
+    printf("actually size:0x%lx\n",size);
+    printf("current allocate block :%d\n",times - free);
+    printf("total size:0x%x",memory_manage_struct.total_size);
     memory_display();
     return 0;
 }
