@@ -1,203 +1,9 @@
-#include <fcntl.h>
-#include <unistd.h>
-#include <string.h>
-#include "memory.h"
+#include "memory_tool.h"
 
 
 struct memory_manage memory_manage_struct = {0};
 
-void memory_alloc_info_insert(void *page_start_address, struct memory_alloc_info ma_info);
 
-void *memory_alloc_from_page_top(void *page_start_address, unsigned long size);
-
-void memory_fragment_insert(void *page_start_address, unsigned long start_offset_in_page, unsigned long size);
-
-struct memory_fragment_info *memory_fragment_get(void *page_start_address, unsigned long size);
-
-struct memory_alloc_info
-memory_fragment_divide(void *page_start_address, struct memory_fragment_info *fragment_ptr, unsigned long size);
-
-struct memory_alloc_info memory_alloc_info_delete(void *page_start_address, void *ptr);
-
-unsigned int get_free_space(struct memory_page_header *page) {
-    unsigned int free_space = page->content_area_start - 8 - sizeof(struct memory_alloc_info) * page->allocate_number;
-    return free_space;
-}
-
-
-void *memory_alloc(void *page_start_address, unsigned int size) {
-    void *result = NULL;
-    struct memory_fragment_info *fragment_info = memory_fragment_get(page_start_address, size);
-    if (fragment_info == NULL)
-        return memory_alloc_from_page_top(page_start_address, size);
-    unsigned long fragment_offset = (unsigned long) fragment_info - (unsigned long) page_start_address;
-    struct memory_alloc_info temp_info = memory_fragment_divide(page_start_address, fragment_info, size);
-    if (temp_info.size && temp_info.start_offset_in_page)
-        result = temp_info.start_offset_in_page + page_start_address;
-    return result;
-}
-
-void memory_free(void *page_start_address, void *ptr) {
-    struct memory_page_header *page_start = page_start_address;
-    struct memory_alloc_info temp_info = memory_alloc_info_delete(page_start_address, ptr);
-    if (temp_info.start_offset_in_page == 0 || temp_info.size == 0)
-        return;
-    if (page_start->allocate_number == 0) {
-        page_start->max_fragment_offset = 0;
-        page_start->content_area_start = 0;
-        return;
-    }
-    if (page_start->content_area_start == temp_info.start_offset_in_page)
-        page_start->content_area_start = page_start->ma_info[page_start->allocate_number - 1].start_offset_in_page;
-    else
-        memory_fragment_insert(page_start_address, temp_info.start_offset_in_page, temp_info.size & (PAGE_SIZE - 1));
-
-}
-
-struct memory_alloc_info *memory_alloc_info_find(void *page_start_address, void *ptr) {
-    unsigned long ptr_offset = ptr - page_start_address;
-    struct memory_page_header *page_start = page_start_address;
-
-    for (unsigned int index = 0; index < page_start->allocate_number; index++)
-        if(page_start->ma_info[index].start_offset_in_page == ptr_offset)
-            return &page_start->ma_info[index];
-
-    return NULL;
-}
-
-struct memory_alloc_info memory_alloc_info_delete(void *page_start_address, void *ptr) {
-    struct memory_alloc_info temp_info = {0};
-    struct memory_page_header *page_start = page_start_address;
-    unsigned long ptr_offset = ptr - page_start_address;
-    for (unsigned int index = 0; index < page_start->allocate_number; index++) {
-        if (page_start->ma_info[index].start_offset_in_page == ptr_offset) {
-            temp_info = page_start->ma_info[index];
-            for (; index < page_start->allocate_number; index++)
-                page_start->ma_info[index] = page_start->ma_info[index + 1];
-            page_start->allocate_number--;
-            break;
-        }
-    }
-    return temp_info;
-}
-
-
-void *memory_alloc_from_page_top(void *page_start_address, unsigned long size) {
-    if (size == 0)
-        return NULL;
-    struct memory_page_header *page_start = page_start_address;
-    if (page_start->allocate_number == 0) {
-        page_start->max_fragment_offset = 0;
-        page_start->content_area_start = PAGE_SIZE - size;
-        page_start->allocate_number = 1;
-        page_start->ma_info[0].start_offset_in_page = PAGE_SIZE - size;
-        page_start->ma_info[0].size = size;
-        return page_start_address + PAGE_SIZE - size;
-    }
-    if (get_free_space(page_start_address) <= size + sizeof(struct memory_alloc_info))
-        return NULL;
-    page_start->content_area_start -= size;
-    page_start->ma_info[page_start->allocate_number].start_offset_in_page = page_start->content_area_start;
-    page_start->ma_info[page_start->allocate_number].size = size;
-    page_start->allocate_number++;
-    return page_start_address + page_start->content_area_start;
-}
-
-
-void memory_alloc_info_insert(void *page_start_address, struct memory_alloc_info ma_info) {
-    struct memory_page_header *page_start = page_start_address;
-    unsigned int index = 0;
-    for (index = 0; index < page_start->allocate_number; index++) {
-        if (ma_info.start_offset_in_page > page_start->ma_info[index].start_offset_in_page)
-            break;
-    }
-    for (unsigned int ma_index = page_start->allocate_number; ma_index > index; ma_index--) {
-        page_start->ma_info[ma_index] = page_start->ma_info[ma_index - 1];
-    }
-    page_start->ma_info[index] = ma_info;
-}
-
-
-struct memory_alloc_info
-memory_fragment_divide(void *page_start_address, struct memory_fragment_info *fragment_ptr, unsigned long size) {
-    struct memory_alloc_info result = {0};
-    unsigned long fragment_offset = (unsigned long) fragment_ptr - (unsigned long) page_start_address;
-    if (fragment_ptr->size >= size) {
-        if (fragment_ptr->size - size < 8)
-            size = fragment_ptr->size;
-        unsigned long mini_fragment_start_offset = fragment_offset + size;
-        unsigned long mini_fragment_size = fragment_ptr->size - size;
-        memory_fragment_insert(page_start_address, mini_fragment_start_offset, mini_fragment_size);
-        result.size = size;
-        result.start_offset_in_page = fragment_offset;
-    }
-    return result;
-}
-
-struct memory_fragment_info *memory_fragment_get(void *page_start_address, unsigned long size) {
-    struct memory_page_header *page_start = page_start_address;
-    if (page_start->max_fragment_offset == 0 || size == 0)
-        return NULL;
-    struct memory_fragment_info *next_fragment = page_start_address + page_start->max_fragment_offset;
-    struct memory_fragment_info *previous_fragment = NULL;
-    struct memory_fragment_info *target_fragment = NULL;
-    if (next_fragment->size < size)
-        return NULL;
-    if (next_fragment->next_fragment_page_offset == 0) {
-        target_fragment = next_fragment;
-        page_start->max_fragment_offset = 0;
-    } else {
-        target_fragment = next_fragment;
-        next_fragment = page_start_address + next_fragment->next_fragment_page_offset;
-        while (next_fragment->next_fragment_page_offset) {
-            if (next_fragment->size < size)
-                break;
-            previous_fragment = target_fragment;
-            target_fragment = next_fragment;
-            next_fragment = page_start_address + next_fragment->next_fragment_page_offset;
-        }
-        if (next_fragment->size >= size) {
-            previous_fragment = target_fragment;
-            target_fragment = next_fragment;
-        }
-        if (previous_fragment == NULL)
-            page_start->max_fragment_offset = target_fragment->next_fragment_page_offset;
-        else
-            previous_fragment->next_fragment_page_offset = target_fragment->next_fragment_page_offset;
-    }
-    return target_fragment;
-}
-
-void memory_fragment_insert(void *page_start_address, unsigned long start_offset_in_page, unsigned long size) {
-    if (start_offset_in_page == 0 || size == 0)
-        return;
-    struct memory_page_header *page_start = page_start_address;
-    struct memory_fragment_info *current_fragment = page_start_address + start_offset_in_page;
-    current_fragment->next_fragment_page_offset = 0;
-    current_fragment->size = size;
-    if (page_start->max_fragment_offset == 0) {
-        page_start->max_fragment_offset = start_offset_in_page;
-        return;
-    }
-    struct memory_fragment_info *previous_fragment = NULL;
-    struct memory_fragment_info *next_fragment = page_start_address + page_start->max_fragment_offset;
-    while (next_fragment->next_fragment_page_offset) {
-        if (next_fragment->size <= current_fragment->size)
-            break;
-        previous_fragment = next_fragment;
-        next_fragment = page_start_address + next_fragment->next_fragment_page_offset;
-    }
-    if (next_fragment->size > size)
-        previous_fragment = next_fragment;
-
-    if (previous_fragment == NULL) {
-        current_fragment->next_fragment_page_offset = page_start->max_fragment_offset;
-        page_start->max_fragment_offset = start_offset_in_page;
-    } else {
-        current_fragment->next_fragment_page_offset = previous_fragment->next_fragment_page_offset;
-        previous_fragment->next_fragment_page_offset = start_offset_in_page;
-    }
-}
 
 unsigned int memory_manage_area_add(unsigned long start_address, unsigned long end_address) {
     if (memory_manage_struct.memory_area_num >= MAX_MEMORY_AREA_NUM)
@@ -225,16 +31,17 @@ unsigned int memory_manage_area_add(unsigned long start_address, unsigned long e
     memory_manage_struct.area[index].end_address = (void *) end_address;
     memory_manage_struct.area[index].size = end_address - start_address;
     memory_manage_struct.area[index].start_page_id = 0;
+    memory_manage_struct.area[index].locked = 0;
     memory_manage_struct.memory_area_num++;
     return OS_SUCCESS;
 }
 
 unsigned int memory_manage_init() {
     memory_manage_struct.total_size = 0;
-    memory_manage_struct.allocate_space = 0;
+//    memory_manage_struct.allocate_space = 0;
     for (unsigned int index = 0; index < memory_manage_struct.memory_area_num; index++) {
         memory_manage_struct.total_size += memory_manage_struct.area[index].size;
-        memset(memory_manage_struct.area[index].start_address,0,memory_manage_struct.area[index].size);
+//        memset(memory_manage_struct.area[index].start_address,0,memory_manage_struct.area[index].size);
     }
     unsigned int keep_per_sectors = PAGE_SIZE / sizeof(unsigned short);
     unsigned int MAT_page = 1;
@@ -299,6 +106,9 @@ void *memory_manage_allocate(unsigned long size) {
         for (unsigned int area_index = 0; area_index < memory_manage_struct.memory_area_num; area_index++) {
             MAT_start_page = memory_manage_struct.area[area_index].start_page_id;
             MAT_end_page = MAT_start_page + memory_manage_struct.area[area_index].size / PAGE_SIZE;
+            if(memory_manage_struct.area[area_index].locked)
+                continue;
+            memory_manage_struct.area[area_index].locked  = 1;
             for (current_page_id = MAT_start_page; current_page_id < MAT_end_page; current_page_id++) {
                 //如果当前MAT为FREE,若未设置start_page_id 则设置 start_page_id
 
@@ -329,9 +139,12 @@ void *memory_manage_allocate(unsigned long size) {
                     start_page_address->ma_info->start_offset_in_page = PAGE_SIZE - (size & (PAGE_SIZE - 1));
                     start_page_address = ((void *) start_page_address) + start_page_address->content_area_start;
                 }
-                memory_manage_struct.allocate_space += size;
+//                memory_manage_struct.allocate_space += size;
+
+                memory_manage_struct.area[area_index].locked  = 0;
                 return start_page_address;
             }
+            memory_manage_struct.area[area_index].locked  = 0;
         }
     } else {
         unsigned int MAT_start, MAT_end;
@@ -340,6 +153,9 @@ void *memory_manage_allocate(unsigned long size) {
         struct memory_area *area_ptr = NULL;
         for (unsigned int area_index = 0; area_index < memory_manage_struct.memory_area_num; area_index++) {
             area_ptr = &(memory_manage_struct.area[area_index]);
+            if(area_ptr->locked)
+                continue;
+            area_ptr->locked = 1;
             page_start_address = area_ptr->start_address;
             MAT_start = memory_manage_struct.area[area_index].start_page_id;
             MAT_end = MAT_start + memory_manage_struct.area[area_index].size / PAGE_SIZE;
@@ -353,7 +169,8 @@ void *memory_manage_allocate(unsigned long size) {
                     memory_manage_struct.MAT_start[current_page_id] = MAT_USED;
                     void* ptr = memory_alloc(page_start_address,size);
                     if(ptr) {
-                        memory_manage_struct.allocate_space += size;
+//                        memory_manage_struct.allocate_space += size;
+                        area_ptr->locked = 0;
                         return ptr;
                     }
                 }
@@ -363,15 +180,18 @@ void *memory_manage_allocate(unsigned long size) {
                     if(dest) {
                         if(get_free_space(page_start) < 16)
                             memory_manage_struct.MAT_start[current_page_id] = MAT_END;
-                        memory_manage_struct.allocate_space += size;
+//                        memory_manage_struct.allocate_space += size;
+                        area_ptr->locked = 0;
                         return dest;
                     }
                 }
                 page_start_address += PAGE_SIZE;
             }
+            area_ptr->locked  = 0;
         }
 
     }
+
     return NULL;
 }
 
@@ -389,6 +209,7 @@ void memory_manage_free(void *ptr) {
     }
     if (area_ptr == NULL)
         return;
+
     unsigned long start_page_id =
             ((unsigned long) ptr - (unsigned long) area_ptr->start_address) / PAGE_SIZE + area_ptr->start_page_id;
     unsigned long end_MAT = area_ptr->start_page_id + area_ptr->size / PAGE_SIZE;
@@ -403,21 +224,22 @@ void memory_manage_free(void *ptr) {
             memory_manage_struct.MAT_start[current_page_id] = MAT_FREE;
         }
         memory_manage_struct.MAT_start[current_page_id] = MAT_FREE;
-        memory_manage_struct.allocate_space -= (current_page_id - start_page_id + 1) * PAGE_SIZE;
+
+//        memory_manage_struct.allocate_space -= (current_page_id - start_page_id + 1) * PAGE_SIZE;
         return;
     }
     struct memory_page_header *start_page = (struct memory_page_header *) ((unsigned long) ptr & ~(PAGE_SIZE - 1));
-    struct memory_alloc_info temp_info = memory_alloc_info_delete(start_page,ptr);
+    struct memory_alloc_info* temp_info = memory_alloc_info_find(start_page,ptr);
     unsigned long index = 0;
-    if(temp_info.start_offset_in_page == 0|| temp_info.size == 0)
+    if(temp_info == NULL)
         return;
     //如果是大块内存则先释放其后的内存页
-    if (temp_info.size >= PAGE_SIZE) {
-        unsigned int pages = temp_info.size / PAGE_SIZE;
+    if (temp_info->size >= PAGE_SIZE) {
+        unsigned int pages = temp_info->size / PAGE_SIZE;
         for (unsigned int times = 0; times < pages; times++)
             memory_manage_struct.MAT_start[start_page_id + 1 + times] = MAT_FREE;
-        memory_manage_struct.allocate_space -= pages * PAGE_SIZE;
-        temp_info.size &= PAGE_SIZE - 1;
+//        memory_manage_struct.allocate_space -= pages * PAGE_SIZE;
+        temp_info->size &= PAGE_SIZE - 1;
     }
 
     if (start_page->allocate_number == 0)
@@ -428,6 +250,23 @@ void memory_manage_free(void *ptr) {
             memory_manage_struct.MAT_start[start_page_id] = MAT_USED;
     }
 
-    memory_manage_struct.allocate_space -= temp_info.size;
+//    memory_manage_struct.allocate_space -= temp_info->size;
 }
 
+void memory_manage_sort_out(unsigned int pageID)
+{
+    struct memory_area *area_ptr = NULL;
+    for(unsigned int index = 1;index < memory_manage_struct.memory_area_num;index++)
+    {
+        if(pageID < memory_manage_struct.area[index].start_page_id)
+        {
+            area_ptr = &memory_manage_struct.area[index - 1];
+            break;
+        }
+    }
+    if(area_ptr == NULL)
+        area_ptr = &memory_manage_struct.area[memory_manage_struct.memory_area_num - 1];
+    unsigned int page_offset = pageID - area_ptr->start_page_id;
+    void * page_start_address = area_ptr->start_address + page_offset * PAGE_SIZE;
+    memory_fragment_merge(page_start_address);
+}

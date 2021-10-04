@@ -16,6 +16,7 @@
 #define MAT_USED 0xF0F0
 
 struct memory_area {
+    unsigned int locked;
     unsigned long start_page_id;
     unsigned long size;
     void* start_address;
@@ -25,7 +26,7 @@ struct memory_area {
 
 struct memory_manage{
     unsigned long total_size;
-    unsigned long allocate_space;
+//    unsigned long allocate_space;
     unsigned long memory_area_num;
     struct memory_area area[MAX_MEMORY_AREA_NUM];
     unsigned short *MAT_start;
@@ -62,8 +63,7 @@ unsigned int memory_manage_init();
 
 void *memory_manage_allocate(unsigned long size);
 void memory_manage_free(void *ptr);
-
-unsigned int get_free_space(struct memory_page_header *page);
+void memory_manage_sort_out(unsigned int pageID);
 
 #endif
 

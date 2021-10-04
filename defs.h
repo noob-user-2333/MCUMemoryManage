@@ -11,7 +11,7 @@
 #define OS_SUCCESS 0
 #define OS_FAILED  1
 
-
+#define NULL ((void*)0)
 
 
 

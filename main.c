@@ -17,7 +17,7 @@ unsigned char file[512] = {0};
 
 void memory_display() {
     int fd = open(FILE_PATH, O_CREAT | O_RDWR, 0666);
-    write(fd, start_ptr, 1024);
+    write(fd, start_ptr, 0x10000);
     close(fd);
 }
 
@@ -38,8 +38,9 @@ int main() {
     printf("Hello, World!\n");
     start_ptr = (void*)(((unsigned long)buffer &~(PAGE_SIZE - 1)) + PAGE_SIZE);
     memset(start_ptr,0,0x2000);
-    memory_manage_area_add(start_ptr,start_ptr + 0x10000);
-//    memory_manage_area_add(start_ptr + 0x3000,start_ptr + 0x4000);
+    memory_manage_area_add(start_ptr,start_ptr + 0x1000);
+    memory_manage_area_add(start_ptr + 0x6000,start_ptr + 0x8000);
+    memory_manage_area_add(start_ptr + 0x9000,start_ptr + 0x10000);
 //    memory_manage_area_add(start_ptr + 2048,start_ptr + 4096);
 //    memory_manage_area_add(start_ptr,start_ptr + 4096);
     memory_manage_init();
@@ -52,13 +53,22 @@ int main() {
     {
         unsigned long num = rand();
 
-        size_list[times - free] = ((num >> 3 << 3) & ((PAGE_SIZE - 1))) ;
-        if(num & 0x01)
-            size_list[times - free] += PAGE_SIZE;
+        size_list[times - free] = ((num >> 3 << 3) & ((PAGE_SIZE * 8 - 1))) ;
+//        if(num & 0x01)
+//            size_list[times - free] += PAGE_SIZE;
         void *ptr= memory_manage_allocate(size_list[times - free]);
         ptr_list[times - free] = ptr;
-        if(ptr_list[times - free] == NULL)
-            break;
+        if(ptr_list[times - free] == NULL) {
+            if(flag)
+                break;
+            else
+            {
+//                for(unsigned int index = 0;index < memory_manage_struct.total_size/PAGE_SIZE;index++)
+//                    memory_manage_sort_out(index);
+                flag = 1;
+                times--;
+            }
+        }
         for(unsigned int index = 0 ;index < size_list[times - free] >> 2;index++)
         {
             ((unsigned int*)ptr_list[times - free])[index] = index;
@@ -82,10 +92,15 @@ int main() {
                 break;
             }
         }
-
     }
+    unsigned long size = 0;
+    for(unsigned int index = 0;index < times - free;index++)
+    {
+        size += size_list[index];
+    }
+    printf("actually size:0x%lx\n",size);
     printf("current allocate block :%d\n",times - free);
-    printf("total size:%d alloca size:%d",memory_manage_struct.total_size,memory_manage_struct.allocate_space);
+    printf("total size:0x%x",memory_manage_struct.total_size);
     memory_display();
     return 0;
 }
