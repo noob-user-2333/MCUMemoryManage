@@ -48,12 +48,12 @@ int main() {
         mat_ptr[times] = &memory_manage_struct.MAT_start[times];
     unsigned int times = 0;
     unsigned int free = 0;
-    unsigned int flag = 0;
+    unsigned int flag = 1;
     for(times = 0;times - free <1024;times++)
     {
         unsigned long num = rand();
 
-        size_list[times - free] = ((num >> 3 << 3) & ((PAGE_SIZE * 8 - 1))) ;
+        size_list[times - free] = ((num >> 3 << 3) & ((PAGE_SIZE  - 1))) ;
 //        if(num & 0x01)
 //            size_list[times - free] += PAGE_SIZE;
         void *ptr= memory_manage_allocate(size_list[times - free]);
@@ -63,10 +63,11 @@ int main() {
                 break;
             else
             {
-//                for(unsigned int index = 0;index < memory_manage_struct.total_size/PAGE_SIZE;index++)
-//                    memory_manage_sort_out(index);
+                for(unsigned int index = 0;index < memory_manage_struct.total_size/PAGE_SIZE;index++)
+                    memory_manage_sort_out(index);
                 flag = 1;
                 times--;
+                continue;
             }
         }
         for(unsigned int index = 0 ;index < size_list[times - free] >> 2;index++)
@@ -81,7 +82,45 @@ int main() {
             free++;
         }
     }
+    for(unsigned int index = 0;index < times - free;index++)
+    {
+        memory_manage_free(ptr_list[index]);
+    }
+    times = 0;
+    free = 0;
+    for(times = 0;times - free <1024;times++)
+    {
+        unsigned long num = rand();
 
+        size_list[times - free] = ((num >> 3 << 3) & ((PAGE_SIZE  - 1))) ;
+//        if(num & 0x01)
+//            size_list[times - free] += PAGE_SIZE;
+        void *ptr= memory_manage_allocate(size_list[times - free]);
+        ptr_list[times - free] = ptr;
+        if(ptr_list[times - free] == NULL) {
+            if(flag)
+                break;
+            else
+            {
+                for(unsigned int index = 0;index < memory_manage_struct.total_size/PAGE_SIZE;index++)
+                    memory_manage_sort_out(index);
+                flag = 1;
+                times--;
+                continue;
+            }
+        }
+        for(unsigned int index = 0 ;index < size_list[times - free] >> 2;index++)
+        {
+            ((unsigned int*)ptr_list[times - free])[index] = index;
+        }
+        printf("alloc the point: 0x%lx,length: 0x%x\n",ptr_list[times - free] - start_ptr ,size_list[times - free]);
+        if(times & 0x01)
+        {
+            memory_manage_free(ptr_list[times - free]);
+            printf("free the point:0x%lx ,length:0x%x\n",ptr_list[times - free] - start_ptr,size_list[times - free]);
+            free++;
+        }
+    }
     for(unsigned int index = 0;index < times - free;index++)
     {
         for(unsigned int indexs = 0;indexs < size_list[index] >> 2;indexs++)
@@ -93,14 +132,15 @@ int main() {
             }
         }
     }
+
     unsigned long size = 0;
     for(unsigned int index = 0;index < times - free;index++)
     {
-        size += size_list[index];
+        size += size_list[times - free];
     }
-    printf("actually size:0x%lx\n",size);
-    printf("current allocate block :%d\n",times - free);
-    printf("total size:0x%x",memory_manage_struct.total_size);
+//    printf("actually size:0x%lx\n",size);
+//    printf("current allocate block :%d\n",times - free);
+//    printf("total size:0x%x",memory_manage_struct.total_size);
     memory_display();
     return 0;
 }

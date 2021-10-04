@@ -106,9 +106,12 @@ void *memory_manage_allocate(unsigned long size) {
         for (unsigned int area_index = 0; area_index < memory_manage_struct.memory_area_num; area_index++) {
             MAT_start_page = memory_manage_struct.area[area_index].start_page_id;
             MAT_end_page = MAT_start_page + memory_manage_struct.area[area_index].size / PAGE_SIZE;
+            if(memory_manage_struct.area[area_index].size / PAGE_SIZE < alloc_page)
+                continue;
             if(memory_manage_struct.area[area_index].locked)
                 continue;
             memory_manage_struct.area[area_index].locked  = 1;
+            start_page_id = 0xFFFF;
             for (current_page_id = MAT_start_page; current_page_id < MAT_end_page; current_page_id++) {
                 //如果当前MAT为FREE,若未设置start_page_id 则设置 start_page_id
 
@@ -119,10 +122,10 @@ void *memory_manage_allocate(unsigned long size) {
                         break;
                 }
                 //如果非MAT_FREE则重置start_page_id
-                if (memory_manage_struct.MAT_start[current_page_id] != MAT_FREE && start_page_id != 0xFFFF)
+                if (memory_manage_struct.MAT_start[current_page_id] != MAT_FREE)
                     start_page_id = 0xFFFF;
             }
-            if (start_page_id != 0xFFFF && current_page_id - start_page_id == alloc_page - 1) {
+            if (start_page_id != 0xFFFF && current_page_id != MAT_end_page && current_page_id - start_page_id == alloc_page - 1) {
                 struct memory_page_header *start_page_address = memory_manage_struct.area[area_index].start_address +
                                                                 (start_page_id -
                                                                  memory_manage_struct.area[area_index].start_page_id) *
@@ -246,7 +249,9 @@ void memory_manage_free(void *ptr) {
         memory_manage_struct.MAT_start[start_page_id] = MAT_FREE;
     else {
         memory_free(start_page,ptr);
-        if(get_free_space(start_page) > 16)
+        if(start_page->allocate_number == 0)
+            memory_manage_struct.MAT_start[start_page_id] = MAT_FREE;
+        else if(get_free_space(start_page) > 16)
             memory_manage_struct.MAT_start[start_page_id] = MAT_USED;
     }
 
