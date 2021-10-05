@@ -45,44 +45,7 @@ unsigned int memory_manage_init() {
         area_start->allocate_number = 0;
         area_start->content_area_start = 0;
         area_start->max_fragment_offset = 0;
-//        memory_manage_struct.total_size += memory_manage_struct.area[index].size;
-//        memset(memory_manage_struct.area[index].start_address,0,memory_manage_struct.area[index].size);
     }
-//    unsigned int keep_per_sectors = PAGE_SIZE / sizeof(unsigned short);
-//    unsigned int MAT_page = 1;
-//    while (MAT_page * keep_per_sectors < memory_manage_struct.total_size / PAGE_SIZE - MAT_page)
-//        MAT_page++;
-//    if (MAT_page * PAGE_SIZE > memory_manage_struct.area[0].size)
-//        return OS_FAILED;
-//    memory_manage_struct.MAT_start = (unsigned short *) memory_manage_struct.area[0].start_address;
-//    memory_manage_struct.MAT_end = (unsigned short *) (memory_manage_struct.area[0].start_address +
-//                                                       MAT_page * PAGE_SIZE);
-//    memory_manage_struct.total_size -= MAT_page * PAGE_SIZE;
-//
-//    if (memory_manage_struct.MAT_end == memory_manage_struct.area[0].end_address) {
-//        memory_manage_struct.memory_area_num--;
-//        if (memory_manage_struct.memory_area_num == 0)
-//            return OS_FAILED;
-//        for (unsigned int index = 0; index < memory_manage_struct.memory_area_num; index++)
-//            memory_manage_struct.area[index] = memory_manage_struct.area[index + 1];
-//        memory_manage_struct.area[memory_manage_struct.memory_area_num].start_address = 0;
-//        memory_manage_struct.area[memory_manage_struct.memory_area_num].end_address = 0;
-//        memory_manage_struct.area[memory_manage_struct.memory_area_num].start_page_id = 0;
-//        memory_manage_struct.area[memory_manage_struct.memory_area_num].size = 0;
-//    } else {
-//        memory_manage_struct.area[0].start_address = memory_manage_struct.MAT_end;
-//        memory_manage_struct.area[0].size -= MAT_page * PAGE_SIZE;
-//    }
-//
-//    for (unsigned int index = 1; index < memory_manage_struct.memory_area_num; index++) {
-//        memory_manage_struct.area[index].start_page_id = memory_manage_struct.area[index - 1].start_page_id +
-//                                                         memory_manage_struct.area[index - 1].size / PAGE_SIZE;
-//    }
-//
-//    unsigned int MAT_sum = memory_manage_struct.total_size / PAGE_SIZE;
-//    memory_manage_struct.MAT_start = memory_manage_struct.MAT_end - MAT_sum;
-//    for (unsigned int times = 0; times < MAT_sum; times++)
-//        memory_manage_struct.MAT_start[times] = MAT_FREE;
     return OS_SUCCESS;
 }
 

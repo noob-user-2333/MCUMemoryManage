@@ -50,7 +50,7 @@ struct memory_area_header {
     unsigned short content_area_start; //内容区域起始点在页内偏移量
     unsigned short max_fragment_offset; //最大的碎片的页内偏移量
     unsigned int allocate_number; //被分配的内存块的数量
-    struct memory_alloc_info ma_info[16];
+    struct memory_alloc_info ma_info[256];
 };
 //page_header后紧跟memory_alloc_information的数组
 

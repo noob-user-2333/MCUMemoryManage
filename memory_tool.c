@@ -8,7 +8,12 @@
 
 unsigned int get_free_space(struct memory_area *area_ptr) {
     struct memory_area_header *area_start_ptr = area_ptr->start_address;
-    unsigned int free_space = area_start_ptr->content_area_start - area_start_ptr->allocate_number * sizeof(struct memory_alloc_info) + 8;
+    unsigned long content_area_start = area_ptr->header_ptr->content_area_start;
+    if(content_area_start == 0)
+        content_area_start = area_ptr->size;
+    unsigned int free_space = content_area_start - area_start_ptr->allocate_number * sizeof(struct memory_alloc_info);
+    if(free_space < 32)
+        return 0;
     return free_space;
 }
 
@@ -59,11 +64,13 @@ void *memory_alloc(struct memory_area *area_ptr, unsigned int size) {
 unsigned long memory_free(struct memory_area *area_ptr, void *ptr) {
     struct memory_area_header* area_start = area_ptr->start_address;
     struct memory_alloc_info temp_info = memory_alloc_info_delete(area_ptr, ptr);
-    if (temp_info.start_offset_in_page == 0 || temp_info.size == 0)
+    if (temp_info.start_offset_in_page == 0 || temp_info.size == 0) {
+
         return 0;
+    }
     if (area_start->allocate_number == 0) {
         area_start->max_fragment_offset = 0;
-        area_start->content_area_start = 0;
+        area_start->content_area_start = area_ptr->size;
         return temp_info.size;
     }
     if (area_start->content_area_start == temp_info.start_offset_in_page)
@@ -102,7 +109,7 @@ struct memory_alloc_info memory_alloc_info_delete(struct memory_area* area_ptr, 
 
 
 void *memory_alloc_from_page_top(struct memory_area *area_ptr, unsigned long size) {
-    if (size == 0)
+    if (size == 0 && size >= area_ptr->size)
         return NULL;
     struct memory_area_header *area_start = area_ptr->start_address;
     if (area_start->allocate_number == 0) {
