@@ -1,0 +1,10 @@
+# MCUMemoryManage
+用于单片机内存分配，支持在多个不同的内存区域分配内存
+
+仿照微软的FAT(file alloc table)文件系统，该内存分配器的数个首页保留对应的MAT(memory alloc table)
+每个页面对应的MAT项为相应的page_id + memory_manage_struct.MAT_start;
+对于未被使用的页面，其对应的MAT项被置为MAT_FREE
+已被使用但仍有空间的页面被设置为 MAT_USED
+被使用完毕的页面设置为MAT_END
+
+对于大小小于PAGE_SIZE的内存分配请求，其将会优先从碎片中分配，否则将分配从当前页面内容区域起始点起向前的空间
