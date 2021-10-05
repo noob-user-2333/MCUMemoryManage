@@ -5,22 +5,21 @@
 #include "defs.h"
 
 
-#define PAGE_SIZE 0x400UL
 
 
 #define MAX_MEMORY_AREA_NUM   4
+#define AREA_ALIGN 0x1000
 
 
-#define MAT_FREE 0x0000
-#define MAT_END 0xFFFF
-#define MAT_USED 0xF0F0
 
 struct memory_area {
-    unsigned int locked;
-    unsigned long start_page_id;
+    //unsigned int locked;
+
+    unsigned long alloc_size;
     unsigned long size;
     void* start_address;
     void* end_address;
+    struct memory_area_header *header_ptr;
 };
 
 
@@ -29,8 +28,8 @@ struct memory_manage{
 //    unsigned long allocate_space;
     unsigned long memory_area_num;
     struct memory_area area[MAX_MEMORY_AREA_NUM];
-    unsigned short *MAT_start;
-    unsigned short *MAT_end;
+//    unsigned short *MAT_start;
+//    unsigned short *MAT_end;
 
 };
 
@@ -47,7 +46,7 @@ struct memory_fragment_info {
     unsigned short next_fragment_page_offset;
 };
 //仅适用于被部分分配的内存页
-struct memory_page_header {
+struct memory_area_header {
     unsigned short content_area_start; //内容区域起始点在页内偏移量
     unsigned short max_fragment_offset; //最大的碎片的页内偏移量
     unsigned int allocate_number; //被分配的内存块的数量
@@ -63,7 +62,7 @@ unsigned int memory_manage_init();
 
 void *memory_manage_allocate(unsigned long size);
 void memory_manage_free(void *ptr);
-void memory_manage_sort_out(unsigned int pageID);
+void memory_manage_sort_out(struct memory_area *area_ptr);
 
 #endif
 

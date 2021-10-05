@@ -10,7 +10,7 @@ unsigned char buffer[2048000] = {0};
 void *ptr_list[1024];
 unsigned int size_list[1024];
 unsigned short* mat_ptr[16];
-
+#define PAGE_SIZE 0x1000
 void *start_ptr;
 const char file_name[] = "/dev/shm/memoryDisplay.bin";
 unsigned char file[512] = {0};
@@ -44,8 +44,6 @@ int main() {
 //    memory_manage_area_add(start_ptr + 2048,start_ptr + 4096);
 //    memory_manage_area_add(start_ptr,start_ptr + 4096);
     memory_manage_init();
-    for(unsigned int times = 0;times <512;times++)
-        mat_ptr[times] = &memory_manage_struct.MAT_start[times];
     unsigned int times = 0;
     unsigned int free = 0;
     unsigned int flag = 1;
@@ -63,8 +61,8 @@ int main() {
                 break;
             else
             {
-                for(unsigned int index = 0;index < memory_manage_struct.total_size/PAGE_SIZE;index++)
-                    memory_manage_sort_out(index);
+                for(unsigned int index =0 ;index < memory_manage_struct.memory_area_num;index++)
+                    memory_manage_sort_out(&memory_manage_struct.area[index]);
                 flag = 1;
                 times--;
                 continue;
@@ -102,8 +100,8 @@ int main() {
                 break;
             else
             {
-                for(unsigned int index = 0;index < memory_manage_struct.total_size/PAGE_SIZE;index++)
-                    memory_manage_sort_out(index);
+                for(unsigned int index = 0;index < memory_manage_struct.memory_area_num;index++)
+                    memory_manage_sort_out(&memory_manage_struct.area[index]);
                 flag = 1;
                 times--;
                 continue;
@@ -132,13 +130,13 @@ int main() {
             }
         }
     }
-
-    unsigned long size = 0;
     for(unsigned int index = 0;index < times - free;index++)
-    {
-        size += size_list[index];
-    }
-    printf("actually size:0x%lx\n",size);
+        memory_manage_free(ptr_list[index]);
+    unsigned long size = 0;
+//    for(unsigned int index = 0;index < times - free;index++)
+//    {
+//        size += size_list[index];
+//    }
     printf("current allocate block :%d\n",times - free);
     printf("total size:0x%x",memory_manage_struct.total_size);
     memory_display();
